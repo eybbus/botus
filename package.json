@@ -1,0 +1,26 @@
+{
+  "name": "botus",
+  "version": "1.0.0",
+  "description": "discord bot",
+  "main": "index.js",
+  "dependencies": {
+    "discord.js": "^11.5.1",
+    "eslint": "^6.0.1",
+    "node-opus": "^0.3.2",
+    "request": "^2.88.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eybbus/botus.git"
+  },
+  "author": "Eythor Freyr Oskarsson",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/eybbus/botus/issues"
+  },
+  "homepage": "https://github.com/eybbus/botus#readme"
+}
