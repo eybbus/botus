@@ -18,7 +18,8 @@ client.registry
   .registerDefaultTypes()
   .registerGroups([
     ['group1', 'Our First Command Group'],
-    ['group2', 'Our Second Command Group']
+    ['group2', 'Our Second Command Group'],
+    ['music', 'Music Commands']
   ])
   .registerDefaultGroups()
   .registerDefaultCommands()
@@ -26,7 +27,7 @@ client.registry
 
 client.on('messageDelete', message => {
   console.log(message);
-  message.channel.send('somebody was naughty');
+  //message.channel.send('somebody was naughty');
 });
 
 client.login(discordToken);
