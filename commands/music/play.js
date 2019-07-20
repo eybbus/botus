@@ -64,6 +64,34 @@ module.exports = class PlayCommand extends Command {
         console.error(err);
         return msg.say('Something went wrong, contact the all mighty creator');
       }
+    } else {
+      try {
+        const video = await youtube.searchVideos(query, 1);
+        if (video.length == 0) {
+          return msg.say('No video found');
+        }
+        const url = `https://www.youtube.com/watch?v=${
+          video[0].raw.id.videoId
+        }`;
+        const title = video[0].title;
+        const song = {
+          url,
+          title,
+          voiceChannel
+        };
+
+        queue.push(song);
+
+        if (isPlaying == false || typeof isPlaying == 'undefined') {
+          isPlaying = true;
+          return playSong(queue, msg);
+        } else if (isPlaying == true) {
+          return msg.say(`${song.title} added to queue`);
+        }
+      } catch (err) {
+        console.error(err);
+        return msg.say('Something went wrong, contact the all mighty creator');
+      }
     }
   }
 };
@@ -85,10 +113,11 @@ function playSong(queue, msg) {
           module.exports.dispatcher = dispatcher;
           module.exports.queue = queue;
           voiceChannel = queue[0].voiceChannel;
-          msg.say(`Now Playing: ${queue[0].title}`);
-          return queue.shift();
+          return msg.say(`Now Playing: ${queue[0].title}`);
         })
-        .on('finish', () => {
+        .on('end', () => {
+          console.log('got here');
+          queue.shift();
           if (queue.length >= 1) {
             return playSong(queue, msg);
           } else {
