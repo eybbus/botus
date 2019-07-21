@@ -16,7 +16,8 @@
     "dotenv": "^8.0.0"
   },
   "scripts": {
-    "start_local": "node -r dotenv/config bot.js",
+    "start_local": "nodemon -r dotenv/config bot.js",
+    "debug": "node -r dotenv/config bot.js --inspect",
     "start": "node bot.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

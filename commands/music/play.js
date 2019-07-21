@@ -13,13 +13,19 @@ module.exports = class PlayCommand extends Command {
       name: 'play',
       group: 'music',
       memberName: 'play',
-      description: 'Plays music in voice channel',
-      examples: ['play https://www.youtube.com/watch?v=v4Wy7gRGgeA', 'play '],
+      description:
+        'Plays music in voice channel. youtube search, youtube links and attachments are supported',
+      examples: [
+        'play https://www.youtube.com/watch?v=v4Wy7gRGgeA',
+        'play searchword',
+        "drag file to chat and write 'prefix play'"
+      ],
       args: [
         {
           key: 'query',
           prompt: '',
           type: 'string',
+          default: '',
           validate: query => query.length > 0 && query.length < 200
         }
       ]
@@ -31,7 +37,6 @@ module.exports = class PlayCommand extends Command {
     if (!voiceChannel) {
       return msg.say('Join a channel and try again');
     }
-
     if (query.match(/^(http(s)?:\/\/)?((w){3}.)?youtu(be|.be)?(\.com)?\/.+/)) {
       const url = query;
       try {
@@ -49,7 +54,32 @@ module.exports = class PlayCommand extends Command {
         const song = {
           url,
           title,
-          voiceChannel
+          voiceChannel,
+          attachment: false
+        };
+
+        queue.push(song);
+
+        if (isPlaying == false || typeof isPlaying == 'undefined') {
+          isPlaying = true;
+          return playSong(queue, msg);
+        } else if (isPlaying == true) {
+          return msg.say(`${song.title} added to queue`);
+        }
+      } catch (err) {
+        console.error(err);
+        return msg.say('File type might not be supported');
+      }
+    } else if (typeof msg.attachments.first() != 'undefined') {
+      try {
+        // TODO: validate whether attachment is an audio file.
+        const url = msg.attachments.first().url;
+        const title = url.split('/').pop();
+        const song = {
+          url,
+          title,
+          voiceChannel,
+          attachment: true
         };
 
         queue.push(song);
@@ -66,6 +96,7 @@ module.exports = class PlayCommand extends Command {
       }
     } else {
       try {
+        if (query.length == 0) return;
         const video = await youtube.searchVideos(query, 1);
         if (video.length == 0) {
           return msg.say('No video found');
@@ -77,7 +108,8 @@ module.exports = class PlayCommand extends Command {
         const song = {
           url,
           title,
-          voiceChannel
+          voiceChannel,
+          attachment: false
         };
 
         queue.push(song);
@@ -102,12 +134,14 @@ function playSong(queue, msg) {
     .join()
     .then(connection => {
       const dispatcher = connection
-        .playStream(
-          ytdl(queue[0].url, {
-            volume: volumeAmount,
-            quality: 'highestaudio',
-            highWaterMark: 1024 * 1024 * 10
-          })
+        .playArbitraryInput(
+          queue[0].attachment
+            ? queue[0].url
+            : ytdl(queue[0].url, {
+                volume: volumeAmount,
+                quality: 'highestaudio',
+                highWaterMark: 1024 * 1024 * 10
+              })
         )
         .on('start', () => {
           module.exports.dispatcher = dispatcher;
@@ -116,7 +150,6 @@ function playSong(queue, msg) {
           return msg.say(`Now Playing: ${queue[0].title}`);
         })
         .on('end', () => {
-          console.log('got here');
           queue.shift();
           if (queue.length >= 1) {
             return playSong(queue, msg);
@@ -125,9 +158,9 @@ function playSong(queue, msg) {
             return voiceChannel.leave();
           }
         })
-        .on('error', e => {
+        .on('error', err => {
           msg.say('Cannot play song');
-          console.log(e);
+          console.log(err);
           return voiceChannel.leave();
         });
     })
