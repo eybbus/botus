@@ -5,12 +5,20 @@
   "main": "index.js",
   "dependencies": {
     "discord.js": "^11.5.1",
+    "discord.js-commando": "^0.10.0",
     "eslint": "^6.0.1",
     "node-opus": "^0.3.2",
-    "request": "^2.88.0"
+    "request": "^2.88.0",
+    "simple-youtube-api": "^5.2.1",
+    "ytdl-core": "^0.29.3"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "dotenv": "^8.0.0"
+  },
   "scripts": {
+    "start_local": "nodemon -r dotenv/config bot.js",
+    "debug": "node -r dotenv/config bot.js --inspect",
+    "start": "node bot.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
