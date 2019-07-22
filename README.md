@@ -6,12 +6,12 @@ Discord bot made with dirscord.js
 ----------
 
 ## Tasks
-- [ ] Add music functionality
-  - [ ] play
-  - [ ] pause
-  - [ ] see queue
-  - [ ] skip
-  - [ ] skip queue
+- [x] Add music functionality
+  - [x] play
+  - [x] pause
+  - [x] see queue
+  - [x] skip
+  - [ ] skip to
 - [ ] configuration commands
 - [ ] unit tests
 - [ ] deploy bot to the cloud
