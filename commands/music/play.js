@@ -7,6 +7,7 @@ const youtube = new Youtube(youtubeKey);
 
 var queue = [];
 var isPlaying;
+let timeoutObj;
 
 module.exports = class PlayCommand extends Command {
   constructor(client) {
@@ -99,8 +100,6 @@ module.exports = class PlayCommand extends Command {
           } else if (isPlaying == true) {
             return msg.say(`${song.title} added to queue`);
           }
-          console.log(body.url);
-          console.log(body.explanation);
         }
       );
     } else if (typeof msg.attachments.first() != 'undefined') {
@@ -137,10 +136,8 @@ module.exports = class PlayCommand extends Command {
         if (video.length == 0) {
           return msg.say('No video found');
         }
-        const url = `https://www.youtube.com/watch?v=${
-          video[0].raw.id.videoId
-        }`;
-        const title = video[0].title;
+        const url = `https://www.youtube.com/watch?v=${video[0].raw.id.videoId}`;
+        const title = video[0].title.replace(/&quot;/g, '"');
         const song = {
           url,
           title,
@@ -171,55 +168,66 @@ function getSoundCloudInfo(url) {
 }
 
 function playSong(queue, msg) {
+  if (timeoutObj != null) {
+    clearTimeout(timeoutObj);
+    timeoutObj = null;
+  }
   let voiceChannel = queue[0];
   queue[0].voiceChannel
     .join()
-    .then(connection => {
-      var dispatcher = null;
-      if (queue[0].isYoutube) {
-        dispatcher = connection.playArbitraryInput(
-          ytdl(queue[0].url, {
-            volume: volumeAmount,
-            quality: 'highestaudio',
-            highWaterMark: 1024 * 1024 * 10
+    .then(
+      connection => {
+        var dispatcher = null;
+        if (queue[0].isYoutube) {
+          dispatcher = connection.playArbitraryInput(
+            ytdl(queue[0].url, {
+              volume: volumeAmount,
+              quality: 'highestaudio',
+              highWaterMark: 1024 * 1024 * 10
+            })
+          );
+        } else if (queue[0].isAttachment) {
+          dispatcher = connection.playArbitraryInput(queue[0].url);
+        } else {
+          dispatcher = connection.playArbitraryInput(
+            getSoundCloudStream(queue[0].url)
+          );
+        }
+        dispatcher
+          .on('start', () => {
+            module.exports.dispatcher = dispatcher;
+            module.exports.queue = queue;
+            voiceChannel = queue[0].voiceChannel;
+            return msg.say(`Now Playing: ${queue[0].title}`);
           })
-        );
-      } else if (queue[0].isAttachment) {
-        dispatcher = connection.playArbitraryInput(queue[0].url);
-      } else {
-        dispatcher = connection.playArbitraryInput(
-          getSoundCloudStream(queue[0].url)
-        );
+          .on('end', () => {
+            queue.shift();
+            if (queue.length >= 1) {
+              return playSong(queue, msg);
+            } else {
+              isPlaying = false;
+              timeoutObj = setTimeout(() => {
+                voiceChannel.leave();
+              }, 300000);
+            }
+          })
+          .on('error', err => {
+            msg.say('Cannot play song');
+            console.error(err.message);
+            queue.shift();
+            if (queue.length >= 1) {
+              return playSong(queue, msg);
+            } else {
+              isPlaying = false;
+              return msg.guild.voiceConnection.disconnect();
+            }
+          })
+          .on('debug', console.log);
+      },
+      error => {
+        console.error('something bad happened ');
       }
-      dispatcher
-        .on('start', () => {
-          module.exports.dispatcher = dispatcher;
-          module.exports.queue = queue;
-          voiceChannel = queue[0].voiceChannel;
-
-          return msg.say(`Now Playing: ${queue[0].title}`);
-        })
-        .on('end', () => {
-          queue.shift();
-          if (queue.length >= 1) {
-            return playSong(queue, msg);
-          } else {
-            isPlaying = false;
-            return voiceChannel.leave();
-          }
-        })
-        .on('error', err => {
-          msg.say('Cannot play song');
-          console.error(err);
-          queue.shift();
-          if (queue.length >= 1) {
-            return playSong(queue, msg);
-          } else {
-            isPlaying = false;
-            return msg.guild.voiceConnection.disconnect();
-          }
-        });
-    })
+    )
     .catch(err => {
       console.log(err);
       return msg.guild.voiceConnection.disconnect();
