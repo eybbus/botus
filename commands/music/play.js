@@ -1,9 +1,12 @@
 const { Command } = require('discord.js-commando');
 const { youtubeKey, volumeAmount, soundCloudKey } = require('../../config');
-const Youtube = require('simple-youtube-api');
+const YoutubeAPI = require('simple-youtube-api');
 const ytdl = require('ytdl-core');
 const request = require('request');
-const youtube = new Youtube(youtubeKey);
+const url = require('url');
+const Song = require('../../util/classes/song');
+
+const youtube = new YoutubeAPI(youtubeKey);
 
 var queue = [];
 var isPlaying;
@@ -41,79 +44,14 @@ module.exports = class PlayCommand extends Command {
     if (!voiceChannel) {
       return msg.say('Join a channel and try again');
     }
-    if (query.match(/^(http(s)?:\/\/)?((w){3}.)?youtu(be|.be)?(\.com)?\/.+/)) {
-      const url = query;
-      try {
-        query = query
-          .replace(/(>|<)/gi, '')
-          .split(/(vi\/|v=|\/v\/|youtu\.be\/|\/embed\/)/);
-        const id = query[2].split(/[^0-9a-z_\-]/i)[0];
-        const video = await youtube.getVideoByID(id);
 
-        if (video.raw.snippet.liveBroadcastContent === 'live') {
-          return msg.say('Live Streams not implemented');
-        }
-
-        const title = video.title;
-        const song = {
-          url,
-          title,
-          voiceChannel,
-          isYoutube: true,
-          isAttachment: false
-        };
-
-        queue.push(song);
-
-        if (isPlaying == false || typeof isPlaying == 'undefined') {
-          isPlaying = true;
-          return playSong(queue, msg);
-        } else if (isPlaying == true) {
-          return msg.say(`${song.title} added to queue`);
-        }
-      } catch (err) {
-        console.error(err);
-        return msg.say('File type might not be supported');
-      }
-    } else if (query.match(/^https?:\/\/soundcloud\.com\/(.*)\/(.*)$/)) {
-      request(
-        `https://api.soundcloud.com/resolve.json?url=${query}&client_id=${soundCloudKey}`,
-        { json: true },
-        (err, res, body) => {
-          if (err) {
-            return console.log(err);
-          }
-          let url = body.stream_url;
-          const song = {
-            url,
-            title: body.title,
-            voiceChannel,
-            isYoutube: false,
-            isAttachment: false
-          };
-
-          queue.push(song);
-
-          if (isPlaying == false || typeof isPlaying == 'undefined') {
-            isPlaying = true;
-            return playSong(queue, msg);
-          } else if (isPlaying == true) {
-            return msg.say(`${song.title} added to queue`);
-          }
-        }
-      );
-    } else if (typeof msg.attachments.first() != 'undefined') {
+    console.log(query);
+    if (typeof msg.attachments.first() != 'undefined') {
+      console.log('type: attachment');
       try {
         // TODO: validate whether attachment is an audio file.
-        const url = msg.attachments.first().url;
-        const title = url.split('/').pop();
-        const song = {
-          url,
-          title,
-          voiceChannel,
-          isYoutube: false,
-          isAttachment: true
-        };
+        let song = new Song(msg.attachments.first().url, voiceChannel);
+        await song.init(true);
 
         queue.push(song);
 
@@ -127,8 +65,26 @@ module.exports = class PlayCommand extends Command {
         console.error(err);
         return msg.say('Something went wrong, contact the all mighty creator');
       }
+    } else if (query.split(' ').length < 2 && stringIsValidUrl(query)) {
+      //TODO: set song
+      try {
+        console.log('type: url');
+        let song = new Song(query, voiceChannel);
+        await song.init();
+        queue.push(song);
+
+        if (isPlaying == false || typeof isPlaying == 'undefined') {
+          isPlaying = true;
+          return playSong(queue, msg);
+        } else if (isPlaying == true) {
+          return msg.say(`${song.title} added to queue`);
+        }
+      } catch (err) {
+        console.error(err);
+        return msg.say('Url might not be supported ');
+      }
     } else {
-      // Youtube Search
+      console.log('type: search');
       try {
         if (query.length == 0) return;
         const video = await youtube.searchVideos(query, 1);
@@ -136,15 +92,11 @@ module.exports = class PlayCommand extends Command {
         if (video.length == 0) {
           return msg.say('No video found');
         }
-        const url = `https://www.youtube.com/watch?v=${video[0].raw.id.videoId}`;
-        const title = video[0].title.replace(/&quot;/g, '"');
-        const song = {
-          url,
-          title,
-          voiceChannel,
-          isYoutube: true,
-          isAttachment: false
-        };
+        let song = new Song(
+          `https://www.youtube.com/watch?v=${video[0].raw.id.videoId}`,
+          voiceChannel
+        );
+        await song.init();
 
         queue.push(song);
 
@@ -162,36 +114,42 @@ module.exports = class PlayCommand extends Command {
   }
 };
 
-function getSoundCloudInfo(url) {
-  var regexp = /^https?:\/\/(soundcloud\.com|snd\.sc)\/(.*)$/;
-  return url.match(regexp) && url.match(regexp)[2];
-}
-
 function playSong(queue, msg) {
   if (timeoutObj != null) {
     clearTimeout(timeoutObj);
     timeoutObj = null;
   }
-  let voiceChannel = queue[0];
+  console.log('streamType: ' + queue[0].streamType);
+  let voiceChannel = queue[0].voiceChannel;
   queue[0].voiceChannel
     .join()
     .then(
       connection => {
         var dispatcher = null;
-        if (queue[0].isYoutube) {
-          dispatcher = connection.playArbitraryInput(
-            ytdl(queue[0].url, {
-              volume: volumeAmount,
-              quality: 'highestaudio',
-              highWaterMark: 1024 * 1024 * 10
-            })
-          );
-        } else if (queue[0].isAttachment) {
-          dispatcher = connection.playArbitraryInput(queue[0].url);
-        } else {
-          dispatcher = connection.playArbitraryInput(
-            getSoundCloudStream(queue[0].url)
-          );
+        // new
+        switch (queue[0].streamType) {
+          case 'attachment':
+            dispatcher = connection.playArbitraryInput(queue[0].url);
+            break;
+          case 'youtube':
+            dispatcher = connection.playArbitraryInput(
+              ytdl(queue[0].url, {
+                volume: volumeAmount,
+                quality: 'highestaudio',
+                highWaterMark: 1024 * 1024 * 10
+              })
+            );
+            break;
+          case 'soundcloud':
+            dispatcher = connection.playArbitraryInput(
+              getSoundCloudStream(queue[0].url)
+            );
+            break;
+          default:
+            console.log('got here');
+            console.log(queue[0].url);
+            dispatcher = connection.playArbitraryInput(queue[0].url);
+            break;
         }
         dispatcher
           .on('start', () => {
@@ -243,4 +201,13 @@ function getSoundCloudStream(url) {
     },
     encoding: null
   });
+}
+
+function stringIsValidUrl(string) {
+  try {
+    new url.URL(string);
+    return true;
+  } catch (err) {
+    return false;
+  }
 }
