@@ -17,9 +17,9 @@ module.exports = class ResumeCommand extends Command {
       return msg.reply('Must be in a channel to pause');
     }
 
-    const dispathcer = music.dispatcher;
+    const dispatcher = music.dispatcher;
 
-    if (typeof dispathcer == 'undefined') {
+    if (typeof dispatcher == 'undefined') {
       return msg.say('No song is playing');
     }
 
