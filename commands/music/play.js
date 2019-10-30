@@ -106,63 +106,36 @@ function playSong(queue, msg) {
   let song = queue[0];
   song.voiceChannel
     .join()
-    .then(
-      connection => {
-        let dispatcher = null;
-        switch (queue[0].streamType) {
-          case 'attachment':
-            dispatcher = connection.playArbitraryInput(queue[0].url);
-            break;
-          case 'youtube':
-            dispatcher = connection.playStream(
-              ytdl(queue[0].url, {
-                volume: volumeAmount,
-                quality: 'highestaudio',
-                highWaterMark: 1024 * 1024 * 10
-              })
-            );
-            break;
-          case 'soundcloud':
-            dispatcher = connection.playArbitraryInput(
-              getSoundCloudStream(queue[0].url)
-            );
-            break;
-          default:
-            dispatcher = connection.playArbitraryInput(queue[0].url);
-            break;
-        }
-        dispatcher
-          .on('start', () => {
-            module.exports.dispatcher = dispatcher;
-            module.exports.queue = queue;
-            return msg.say(`Now Playing: ${queue[0].title}`);
-          })
-          .on('end', () => {
-            queue.shift();
-            if (queue.length >= 1) {
-              return playSong(queue, msg);
-            } else {
-              timeoutObj = setTimeout(() => {
-                song.voiceChannel.leave();
-              }, 300000);
-            }
-          })
-          .on('error', err => {
-            msg.say('Cannot play song');
-            console.error(err.message);
-            queue.shift();
-            if (queue.length >= 1) {
-              return playSong(queue, msg);
-            } else {
-              return msg.guild.voiceConnection.disconnect();
-            }
-          })
-          .on('debug', console.log);
-      },
-      error => {
-        console.error('something bad happened ');
-      }
-    )
+    .then(connection => {
+      let dispatcher = getStream(song, connection);
+      dispatcher
+        .on('start', () => {
+          module.exports.dispatcher = dispatcher;
+          module.exports.queue = queue;
+          return msg.say(`Now Playing: ${queue[0].title}`);
+        })
+        .on('end', () => {
+          queue.shift();
+          if (queue.length >= 1) {
+            return playSong(queue, msg);
+          } else {
+            timeoutObj = setTimeout(() => {
+              song.voiceChannel.leave();
+            }, 300000);
+          }
+        })
+        .on('error', err => {
+          msg.say('Cannot play song');
+          console.error(err.message);
+          queue.shift();
+          if (queue.length >= 1) {
+            return playSong(queue, msg);
+          } else {
+            return msg.guild.voiceConnection.disconnect();
+          }
+        })
+        .on('debug', console.log);
+    })
     .catch(err => {
       console.log(err);
       return msg.guild.voiceConnection.disconnect();
@@ -187,4 +160,29 @@ function stringIsValidUrl(string) {
   } catch (err) {
     return false;
   }
+}
+
+function getStream(song, connection) {
+  let dispatcher = null;
+  switch (song.streamType) {
+    case 'attachment':
+      dispatcher = connection.playArbitraryInput(song.url);
+      break;
+    case 'youtube':
+      dispatcher = connection.playStream(
+        ytdl(song.url, {
+          volume: volumeAmount,
+          quality: 'highestaudio',
+          highWaterMark: 1024 * 1024 * 10
+        })
+      );
+      break;
+    case 'soundcloud':
+      dispatcher = connection.playArbitraryInput(getSoundCloudStream(song.url));
+      break;
+    default:
+      dispatcher = connection.playArbitraryInput(song.url);
+      break;
+  }
+  return dispatcher;
 }
