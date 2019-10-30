@@ -8,8 +8,7 @@ const Song = require('../../util/classes/song');
 
 const youtube = new YoutubeAPI(youtubeKey);
 
-var queue = [];
-var isPlaying;
+let queue = [];
 let timeoutObj;
 
 module.exports = class PlayCommand extends Command {
@@ -39,77 +38,62 @@ module.exports = class PlayCommand extends Command {
   }
 
   async run(msg, { query }) {
-    // TODO: refactor
     let voiceChannel = msg.member.voiceChannel;
+    let song = null;
     if (!voiceChannel) {
       return msg.say('Join a channel and try again');
     }
-
-    console.log(query);
     if (typeof msg.attachments.first() != 'undefined') {
       console.log('type: attachment');
       try {
         // TODO: validate whether attachment is an audio file.
-        let song = new Song(msg.attachments.first().url, voiceChannel);
+        song = new Song(msg.attachments.first().url, voiceChannel);
         await song.init(true);
 
         queue.push(song);
-
-        if (isPlaying == false || typeof isPlaying == 'undefined') {
-          isPlaying = true;
-          return playSong(queue, msg);
-        } else if (isPlaying == true) {
-          return msg.say(`${song.title} added to queue`);
-        }
       } catch (err) {
         console.error(err);
         return msg.say('Something went wrong, contact the all mighty creator');
       }
     } else if (query.split(' ').length < 2 && stringIsValidUrl(query)) {
-      //TODO: set song
       try {
-        console.log('type: url');
-        let song = new Song(query, voiceChannel);
+        song = new Song(query, voiceChannel);
         await song.init();
         queue.push(song);
-
-        if (isPlaying == false || typeof isPlaying == 'undefined') {
-          isPlaying = true;
-          return playSong(queue, msg);
-        } else if (isPlaying == true) {
-          return msg.say(`${song.title} added to queue`);
-        }
       } catch (err) {
         console.error(err);
-        return msg.say('Url might not be supported ');
+        return msg.say('The url might not be supported');
       }
     } else {
-      console.log('type: search');
       try {
         if (query.length == 0) return;
+
         const video = await youtube.searchVideos(query, 1);
 
         if (video.length == 0) {
           return msg.say('No video found');
         }
-        let song = new Song(
+
+        song = new Song(
           `https://www.youtube.com/watch?v=${video[0].raw.id.videoId}`,
           voiceChannel
         );
+
         await song.init();
-
         queue.push(song);
-
-        if (isPlaying == false || typeof isPlaying == 'undefined') {
-          isPlaying = true;
-          return playSong(queue, msg);
-        } else if (isPlaying == true) {
-          return msg.say(`${song.title} added to queue`);
-        }
       } catch (err) {
         console.error(err);
-        return msg.say('Something went wrong, contact the all mighty creator');
+        return msg.say(
+          'Something went wrong with youtube search, contact the all mighty creator'
+        );
       }
+    }
+
+    console.debug(queue.length);
+    if (queue.length > 1) {
+      return msg.say(`${song.title} added to queue`);
+    } else {
+      return playSong(queue, msg);
     }
   }
 };
@@ -119,20 +103,18 @@ function playSong(queue, msg) {
     clearTimeout(timeoutObj);
     timeoutObj = null;
   }
-  console.log('streamType: ' + queue[0].streamType);
-  let voiceChannel = queue[0].voiceChannel;
-  queue[0].voiceChannel
+  let song = queue[0];
+  song.voiceChannel
     .join()
     .then(
       connection => {
-        var dispatcher = null;
-        // new
+        let dispatcher = null;
         switch (queue[0].streamType) {
           case 'attachment':
             dispatcher = connection.playArbitraryInput(queue[0].url);
             break;
           case 'youtube':
-            dispatcher = connection.playArbitraryInput(
+            dispatcher = connection.playStream(
               ytdl(queue[0].url, {
                 volume: volumeAmount,
                 quality: 'highestaudio',
@@ -146,8 +128,6 @@ function playSong(queue, msg) {
             );
             break;
           default:
-            console.log('got here');
-            console.log(queue[0].url);
             dispatcher = connection.playArbitraryInput(queue[0].url);
             break;
         }
@@ -155,7 +135,6 @@ function playSong(queue, msg) {
           .on('start', () => {
             module.exports.dispatcher = dispatcher;
             module.exports.queue = queue;
-            voiceChannel = queue[0].voiceChannel;
             return msg.say(`Now Playing: ${queue[0].title}`);
           })
           .on('end', () => {
@@ -163,9 +142,8 @@ function playSong(queue, msg) {
             if (queue.length >= 1) {
               return playSong(queue, msg);
             } else {
-              isPlaying = false;
               timeoutObj = setTimeout(() => {
-                voiceChannel.leave();
+                song.voiceChannel.leave();
               }, 300000);
             }
           })
@@ -176,7 +154,6 @@ function playSong(queue, msg) {
             if (queue.length >= 1) {
               return playSong(queue, msg);
             } else {
-              isPlaying = false;
               return msg.guild.voiceConnection.disconnect();
             }
           })
