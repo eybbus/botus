@@ -1,5 +1,3 @@
-const dotenv = require('dotenv');
-
 module.exports = {
   prefix: 'botus ',
   discordToken: process.env.DISCORD_TOKEN,
