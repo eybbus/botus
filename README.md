@@ -8,12 +8,19 @@ Discord bot made with dirscord.js
 ## Tasks
 - [x] Add music functionality
   - [x] play
+    - [x] Soundcloud links
+    - [ ] Soundcloud playlist
+    - [x] Youtube links
+    - [ ] Youtube playlist
+    - [x] Attachments
+    - [x] try to play arbitary link 
   - [x] pause
   - [x] see queue
   - [x] skip
   - [ ] skip to
 - [ ] configuration commands
 - [ ] unit tests
+  - No available package to mock client. Might just unit test utility functions;
 - [ ] deploy bot to the cloud
   - [ ] Add continues deployment
 
