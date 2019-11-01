@@ -14,16 +14,14 @@ module.exports = class QueueCommand extends Command {
 
   run(msg) {
     const { dispatcher, queue } = music;
-    console.log(msg.guild.voiceConnection);
-
     if (!msg.guild.voiceConnection) {
       return msg.say("I'm not in a voice channel right now");
     } else if (msg.guild.voiceConnection) {
-      queue.length = 0;
       if (typeof dispathcer == 'undefined') {
         return msg.guild.voiceConnection.disconnect();
       }
+      queue.length = 0;
       return dispatcher.end();
-    }
+		}
   }
 };

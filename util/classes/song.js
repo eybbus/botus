@@ -14,6 +14,9 @@ module.exports = class Song {
     this._streamType = '';
     this._voiceChannel = voiceChannel;
     this._isPlaying = false;
+    this._thumbnail = ''; //TODO: set default image;
+    this._description = '';
+    this._requestedBy = '';
   }
 
   set url(newUrl) {
@@ -35,6 +38,22 @@ module.exports = class Song {
   get title() {
     return this._title;
   }
+
+  get thumbnail() {
+    return this._thumbnail;
+  }
+
+  get description() {
+    return this._description;
+  }
+
+  get requestedBy() {
+    return this._requestedBy;
+  }
+  set requestedBy(string) {
+    this._requestedBy = string;
+  }
+
   /**
    * Initilizes the song with title and streamType.
    * @param {boolean} isAttachment
@@ -48,8 +67,7 @@ module.exports = class Song {
       const video = await youtube.getVideoByID(id);
 
       if (video.raw.snippet.liveBroadcastContent === 'live') {
-        this._title = 'Youtube Livestream';
-        this._streamType = 'unknown';
+        throw new Error('Youtube livestreams are not supported');
       } else {
         this._title = video.title;
         this._streamType = 'youtube';
@@ -60,8 +78,15 @@ module.exports = class Song {
         `https://api.soundcloud.com/resolve.json?url=${this._url}&client_id=${soundCloudKey}`,
         { json: true }
       );
-      this._url = response.body.stream_url;
-      this._title = response.body.title;
+      console.log(response.body);
+      if (response.body.tracks != undefined) {
+        throw new Error('Soundcloud playlists are not supported');
+      }
+      const { artwork_url, stream_url, title, description } = response.body;
+      this._description = description;
+      this._thumbnail = artwork_url;
+      this._url = stream_url;
+      this._title = title;
       this._streamType = 'soundcloud';
     } else {
       this._title = `${url.parse(this._url).hostname} audio`;

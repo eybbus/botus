@@ -1,11 +1,11 @@
 const { Command } = require('discord.js-commando');
+const { RichEmbed } = require('discord.js');
 const { youtubeKey, volumeAmount, soundCloudKey } = require('../../config');
 const YoutubeAPI = require('simple-youtube-api');
 const ytdl = require('ytdl-core');
 const request = require('request');
 const url = require('url');
 const Song = require('../../util/classes/song');
-
 const youtube = new YoutubeAPI(youtubeKey);
 
 let queue = [];
@@ -62,7 +62,7 @@ module.exports = class PlayCommand extends Command {
         queue.push(song);
       } catch (err) {
         console.error(err);
-        return msg.say('The url might not be supported');
+        return msg.say(err.message);
       }
     } else {
       try {
@@ -107,34 +107,66 @@ function playSong(queue, msg) {
   song.voiceChannel
     .join()
     .then(connection => {
-      let dispatcher = getStream(song, connection);
-      dispatcher
-        .on('start', () => {
-          module.exports.dispatcher = dispatcher;
-          module.exports.queue = queue;
-          return msg.say(`Now Playing: ${queue[0].title}`);
-        })
-        .on('end', () => {
-          queue.shift();
-          if (queue.length >= 1) {
-            return playSong(queue, msg);
-          } else {
-            timeoutObj = setTimeout(() => {
-              song.voiceChannel.leave();
-            }, 300000);
-          }
-        })
-        .on('error', err => {
-          msg.say('Cannot play song');
-          console.error(err.message);
-          queue.shift();
-          if (queue.length >= 1) {
-            return playSong(queue, msg);
-          } else {
-            return msg.guild.voiceConnection.disconnect();
-          }
-        })
-        .on('debug', console.log);
+      try {
+        let dispatcher = getStream(song, connection);
+        dispatcher
+          .on('start', () => {
+            module.exports.dispatcher = dispatcher;
+            module.exports.queue = queue;
+            // TODO: Refactor
+            const embed = {
+              title: `**Title**: ${song.title}`,
+              color: 16726952,
+              description: song.description,
+              footer: {
+                icon_url: msg.member.user.avatarURL,
+                text: `Requested by ${msg.member.displayName}`
+              },
+              thumbnail: {
+                url: song.thumbnail
+                  ? song.thumbnail
+                  : 'https://cdn.discordapp.com/embed/avatars/0.png'
+              },
+              author: {
+                name: 'Playing',
+                icon_url:
+                  'https://www.macworld.co.uk/cmsdata/features/3612963/how_to_get_music_on_iphone_1600home_thumb800.jpg'
+              }
+            };
+            return msg.channel.send({ embed: embed });
+          })
+          .on('end', reason => {
+            console.log(reason);
+            console.log(dispatcher.destroyed);
+            queue.shift();
+            if (queue.length >= 1) {
+              return playSong(queue, msg);
+            } else {
+              timeoutObj = setTimeout(() => {
+                song.voiceChannel.leave();
+              }, 300000);
+            }
+          })
+          .on('error', err => {
+            msg.say('Cannot play song');
+            console.error(err.message);
+            queue.shift();
+            if (queue.length >= 1) {
+              return playSong(queue, msg);
+            } else {
+              return msg.guild.voiceConnection.disconnect();
+            }
+          })
+          .on('debug', console.log);
+      } catch (error) {
+        msg.say(error.message);
+        queue.shift();
+        if (queue.length >= 1) {
+          return playSong(queue, msg);
+        } else {
+          return msg.guild.voiceConnection.disconnect();
+        }
+      }
     })
     .catch(err => {
       console.log(err);
@@ -143,14 +175,19 @@ function playSong(queue, msg) {
 }
 
 function getSoundCloudStream(url) {
-  return request({
-    url: url,
-    followAllRedirects: true,
-    qs: {
-      client_id: soundCloudKey
-    },
-    encoding: null
-  });
+  try {
+    return request({
+      url: url,
+      followAllRedirects: true,
+      qs: {
+        client_id: soundCloudKey
+      },
+      encoding: null
+    });
+  } catch (error) {
+    console.log(error);
+    throw new Error('There was a problem retriving soundcloud stream');
+  }
 }
 
 function stringIsValidUrl(string) {
@@ -169,11 +206,12 @@ function getStream(song, connection) {
       dispatcher = connection.playArbitraryInput(song.url);
       break;
     case 'youtube':
-      dispatcher = connection.playStream(
+      dispatcher = connection.playArbitraryInput(
         ytdl(song.url, {
           volume: volumeAmount,
+          fitler: 'audioOnly',
           quality: 'highestaudio',
-          highWaterMark: 1024 * 1024 * 10
+          highWaterMark: 1 << 25
         })
       );
       break;
