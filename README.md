@@ -14,7 +14,7 @@ Discord bot made with dirscord.js
     - [ ] Youtube playlist
     - [x] Attachments
     - [x] try to play arbitary link 
-      - [] parse html from link and find video source and play it
+      - [ ] parse html from link and find video source and play it
   - [x] pause
   - [x] see queue
   - [x] skip
