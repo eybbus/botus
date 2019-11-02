@@ -18,10 +18,10 @@ Discord bot made with dirscord.js
   - [x] pause
   - [x] see queue
   - [x] skip
-  - [ ] skip to
+  - [ ] seek
 - [ ] configuration commands
 - [ ] unit tests
   - No available package to mock client. Might just unit test utility functions;
-- [ ] deploy bot to the cloud
+- [x] deploy bot to the cloud
   - [ ] Add continues deployment
 
