@@ -6,6 +6,9 @@ Discord bot made with dirscord.js
 ----------
 
 ## Tasks
+- [ ] punishment command
+  - command bot to punish user, Would play random audio that have been decided by other users.
+  - Token system. Users have to use token to punish.
 - [x] Add music functionality
   - [x] play
     - [x] Soundcloud links
@@ -15,13 +18,17 @@ Discord bot made with dirscord.js
     - [x] Attachments
     - [x] try to play arbitary link 
       - [ ] parse html from link and find video source and play it
+    - [ ] display length
   - [x] pause
   - [x] see queue
   - [x] skip
+  - [ ] time
+    - get current time and remaining time of song
   - [ ] seek
 - [ ] configuration commands
 - [ ] unit tests
   - No available package to mock client. Might just unit test utility functions;
 - [x] deploy bot to the cloud
+  - [ ] docker deployment
   - [ ] Add continues deployment
 
