@@ -23,6 +23,6 @@ module.exports = class ResumeCommand extends Command {
       return msg.say('No song is playing');
     }
 
-    dispathcer.resume();
+    dispatcher.resume();
   }
 };
