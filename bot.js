@@ -1,6 +1,9 @@
-const path = require('path');
-const { CommandoClient } = require('discord.js-commando');
-const { discordToken, owner, prefix } = require('./config');
+const path = require("path");
+const { CommandoClient } = require("discord.js-commando");
+const { discordToken, owner, prefix } = require("./config");
+const Music = require("./util/classes/music");
+
+exports.music = new Music();
 
 const client = new CommandoClient({
   commandPrefix: prefix,
@@ -9,23 +12,23 @@ const client = new CommandoClient({
   disableEveryone: true
 });
 
-client.on('ready', () => {
-  console.log('Logged in as %s - %s\n', client.user.username, client.user.id);
-  client.user.setActivity('I am shame');
+client.on("ready", () => {
+  console.log("Logged in as %s - %s\n", client.user.username, client.user.id);
+  client.user.setActivity("I am shame");
 });
 
 client.registry
   .registerDefaultTypes()
   .registerGroups([
-    ['group1', 'Our First Command Group'],
-    ['group2', 'Our Second Command Group'],
-    ['music', 'Music Commands']
+    ["group1", "Our First Command Group"],
+    ["group2", "Our Second Command Group"],
+    ["music", "Music Commands"]
   ])
   .registerDefaultGroups()
   .registerDefaultCommands()
-  .registerCommandsIn(path.join(__dirname, 'commands'));
+  .registerCommandsIn(path.join(__dirname, "commands"));
 
-client.on('messageDelete', message => {
+client.on("messageDelete", message => {
   console.log(message);
   //message.channel.send('somebody was naughty');
 });
