@@ -24,10 +24,14 @@ module.exports = class Music {
     return this._queues.get(serverId);
   }
 
+  hasCurrentSong(serverId) {
+    let queue = this.getQueue(serverId);
+    return Object.keys(queue.currentSong).length > 1;
+  }
+
   async addSong(serverId, url, voiceChannel, requestedName, isAttachment) {
     const queue = this.getQueue(serverId);
     let youtubeParsed = YoutubeAPI.util.parseURL(url);
-    console.log(youtubeParsed);
     if (isAttachment) {
       // If the song is an attachment get title from end of file.
       let title = "Attachment: " + url.split("/").pop();
