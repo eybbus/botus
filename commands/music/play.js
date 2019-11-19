@@ -73,15 +73,15 @@ module.exports = class PlayCommand extends Command {
       return msg.say(err.message);
     }
 
-    if (queue.length > 1) {
-      return msg.say(`${song.title} added to queue`);
+    if (music.hasCurrentSong(guildId)) {
+      // TODO: response: song added to queue;
     } else {
       return playSong(msg);
     }
   }
 };
 
-function playSong(msg) {
+async function playSong(msg) {
   queue = music.getQueue(msg.guild.id);
   if (timeoutObj != null) {
     clearTimeout(timeoutObj);
@@ -90,72 +90,76 @@ function playSong(msg) {
 
   let song = queue.songs.shift();
   queue.currentSong = song;
-  song.voiceChannel
-    .join()
-    .then(connection => {
-      try {
-        let dispatcher = getStream(song, connection);
-        dispatcher
-          .on("start", () => {
-            module.exports.dispatcher = dispatcher;
-            module.exports.queue = queue;
-            // TODO: Refactor
-            const embed = {
-              title: `**Title**: ${song.title}`,
-              color: 16726952,
-              description: song.description,
-              footer: {
-                icon_url: msg.member.user.avatarURL,
-                text: `Requested by ${msg.member.displayName}`
-              },
-              thumbnail: {
-                url: song.thumbnail
-                  ? song.thumbnail
-                  : "https://cdn.discordapp.com/embed/avatars/0.png"
-              },
-              author: {
-                name: "Playing",
-                icon_url:
-                  "https://www.macworld.co.uk/cmsdata/features/3612963/how_to_get_music_on_iphone_1600home_thumb800.jpg"
-              }
-            };
-            return msg.channel.send({ embed: embed });
-          })
-          .on("end", reason => {
-            console.log(reason);
-            console.log(dispatcher.destroyed);
-            if (queue.songs.length >= 1) {
-              return playSong(msg);
-            } else {
-              timeoutObj = setTimeout(() => {
-                song.voiceChannel.leave();
-              }, 300000);
-            }
-          })
-          .on("error", err => {
-            msg.say("Cannot play song");
-            console.error(err.message);
-            if (queue.songs.length >= 1) {
-              return playSong(msg);
-            } else {
-              return msg.guild.voiceConnection.disconnect();
-            }
-          })
-          .on("debug", console.log);
-      } catch (error) {
-        console.log(error);
-        msg.say(error.message);
+
+  try {
+    var connection = await song.voiceChannel.join();
+    if (connection.status === 4) {
+      connection = await song.voiceChannel.join();
+    }
+  } catch (error) {
+    console.log(error);
+  }
+
+  try {
+    console.log(connection.status);
+    let dispatcher = getStream(song, connection);
+    dispatcher
+      .on("start", () => {
+        module.exports.dispatcher = dispatcher;
+        module.exports.queue = queue;
+        // TODO: Refactor
+        const embed = {
+          title: `**Title**: ${song.title}`,
+          color: 16726952,
+          description: song.description,
+          footer: {
+            icon_url: msg.member.user.avatarURL,
+            text: `Requested by ${msg.member.displayName}`
+          },
+          thumbnail: {
+            url: song.thumbnail
+              ? song.thumbnail
+              : "https://cdn.discordapp.com/embed/avatars/0.png"
+          },
+          author: {
+            name: "Playing",
+            icon_url:
+              "https://www.macworld.co.uk/cmsdata/features/3612963/how_to_get_music_on_iphone_1600home_thumb800.jpg"
+          }
+        };
+        return msg.channel.send({ embed: embed });
+      })
+      .on("end", reason => {
+        console.log(`Reason: ${reason}`);
+        console.log(dispatcher.destroyed);
+        if (queue.songs.length >= 1) {
+          return playSong(msg);
+        } else {
+          queue.currentSong = {};
+          timeoutObj = setTimeout(() => {
+            song.voiceChannel.leave();
+          }, 300000);
+        }
+      })
+      .on("error", err => {
+        msg.say("Cannot play song");
+        console.error(err.message);
         if (queue.songs.length >= 1) {
           return playSong(msg);
         } else {
           return msg.guild.voiceConnection.disconnect();
         }
-      }
-    })
-    .catch(err => {
-      console.log(err);
+      })
+      .on("debug", console.log);
+  } catch (error) {
+    console.log(error);
+    msg.say(error.message);
+    if (queue.songs.length >= 1) {
+      return playSong(msg);
+    } else {
       return msg.guild.voiceConnection.disconnect();
-    });
+    }
+  }
 }
 
 function getSoundCloudStream(url) {
@@ -185,7 +189,6 @@ function stringIsValidUrl(string) {
 
 function getStream(song, connection) {
   let dispatcher = null;
-  console.log(song);
   switch (song.streamType) {
     case "attachment":
       dispatcher = connection.playArbitraryInput(song.url);
